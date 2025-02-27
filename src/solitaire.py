@@ -27,7 +27,17 @@ class Solitaire(ft.Stack):
         self.width = SOLITAIRE_WIDTH
         self.height = SOLITAIRE_HEIGHT
 
+        self.restart_button = ft.ElevatedButton(text="Reiniciar Jogo", on_click=self.restart_game)
+        self.controls.append(ft.Container(content=self.restart_button, top=10, right=100))
+        
+        self.history = []
+        self.undo_button = ft.ElevatedButton(text="Desfazer Jogada", on_click=self.undo_move)
+        self.controls.append(ft.Container(content=self.undo_button, top=10, right=150))
+        
+
+
     def did_mount(self):
+        print("BABACA")
         self.create_card_deck()
         self.create_slots()
         self.deal_cards()
@@ -160,3 +170,11 @@ class Solitaire(ft.Stack):
         self.controls.append(
             ft.AlertDialog(title=ft.Text("Congratulations! You won!"), open=True)
         )
+
+    def restart_game(self, e):
+        self.controls = [ft.Container(content=self.restart_button, top=10, right=100)]
+        self.create_card_deck()
+        self.create_slots()
+        self.deal_cards()
+        self.update()
+
