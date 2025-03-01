@@ -85,6 +85,7 @@ class Card(ft.GestureDetector):
             self.solitaire.winning_sequence()
 
         self.solitaire.update()
+        self.solitaire.save_current_state()
 
     def get_draggable_pile(self):
         """returns list of cards that will be dragged together, starting with the current card"""

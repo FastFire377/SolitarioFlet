@@ -37,7 +37,6 @@ class Solitaire(ft.Stack):
 
 
     def did_mount(self):
-        print("BABACA")
         self.create_card_deck()
         self.create_slots()
         self.deal_cards()
@@ -123,6 +122,7 @@ class Solitaire(ft.Stack):
 
         self.update()
 
+
     def check_foundations_rules(self, card, slot):
         top_card = slot.get_top_card()
         if top_card is not None:
@@ -171,8 +171,76 @@ class Solitaire(ft.Stack):
             ft.AlertDialog(title=ft.Text("Congratulations! You won!"), open=True)
         )
 
+    def save_current_state(self):
+        state = self.get_game_state()
+        self.history.append(state)
+
+    def get_game_state(self):
+        state = {
+            "stock": [self.card_to_dict(card) for card in self.stock.pile],
+            "waste": [self.card_to_dict(card) for card in self.waste.pile],
+            "foundations": [[self.card_to_dict(card) for card in slot.pile] for slot in self.foundations],
+            "tableau": [[self.card_to_dict(card) for card in slot.pile] for slot in self.tableau]
+        }
+        return state
+
+    def card_to_dict(self, card):
+        return {
+            "suite": card.suite.name,
+            "rank": card.rank.name,
+            "face_up": card.face_up,
+            "top": card.top,
+            "left": card.left
+        }
+
+    def load_game_state(self, state):
+        self.controls = [self.restart_button, self.undo_button]  # Preserve buttons
+        self.create_card_deck()  # Ensure we have a fresh set of cards
+
+        def dict_to_card(card_dict):
+            suite = next(s for s in self.cards if s.suite.name == card_dict["suite"])
+            rank = next(r for r in self.cards if r.rank.name == card_dict["rank"])
+            card = next(c for c in self.cards if c.suite == suite and c.rank == rank)
+            card.face_up = card_dict["face_up"]
+            card.top = card_dict["top"]
+            card.left = card_dict["left"]
+            return card
+
+        self.stock.pile = [dict_to_card(card) for card in state["stock"]]
+        self.waste.pile = [dict_to_card(card) for card in state["waste"]]
+        self.foundations = [[dict_to_card(card) for card in slot] for slot in state["foundations"]]
+        self.tableau = [[dict_to_card(card) for card in slot] for slot in state["tableau"]]
+
+        all_cards = self.stock.pile + self.waste.pile + [card for slot in self.foundations for card in slot] + [card for slot in self.tableau for card in slot]
+        self.controls.extend(all_cards)
+
+        self.update()
+
+    def undo_move(self, e):
+        print("history:", self.history)
+        if len(self.history) > 1:
+            self.history.pop()  # Remove o estado atual
+            previous_state = self.history[-1]  # Pega o estado anterior
+            self.load_game_state(previous_state)
+
+    def clear_game_board(self):
+        # Remove todas as cartas da tela
+        for card in self.controls[:]:  # Copia a lista para evitar problemas ao remover
+            if isinstance(card, Card):
+                self.controls.remove(card)
+
+        # Limpa o histórico
+        self.history.clear()
+
+        self.update()
+
     def restart_game(self, e):
-        self.controls = [ft.Container(content=self.restart_button, top=10, right=100)]
+        self.clear_game_board()
+        self.history = []
+        self.controls = [
+            ft.Container(content=self.restart_button, top=10, right=100),
+            ft.Container(content=self.undo_button, top=10, right=150)
+        ]
         self.create_card_deck()
         self.create_slots()
         self.deal_cards()
