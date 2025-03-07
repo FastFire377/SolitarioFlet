@@ -23,6 +23,7 @@ class Card(ft.GestureDetector):
         self.left = None
         self.solitaire = solitaire
         self.slot = None
+        self.index = None
         self.content = ft.Container(
             width=CARD_WIDTH,
             height=CARD_HEIGTH,
@@ -80,24 +81,28 @@ class Card(ft.GestureDetector):
 
             # add card to the new slot's pile
             slot.pile.append(card)
+            card.index = len(slot.pile) - 1
 
         if self.solitaire.check_win():
             self.solitaire.winning_sequence()
 
         self.solitaire.update()
-        self.solitaire.save_current_state()
+        self.solitaire.save_state()
 
     def get_draggable_pile(self):
-        """returns list of cards that will be dragged together, starting with the current card"""
-
-        if (
-            self.slot is not None
-            and self.slot != self.solitaire.stock
-            and self.slot != self.solitaire.waste
-        ):
-            self.draggable_pile = self.slot.pile[self.slot.pile.index(self) :]
-        else:  # slot == None when the cards are dealed and need to be place in slot for the first time
+        """
+        Retorna a lista de cartas que serão arrastadas a partir da carta atual.
+        Se a carta não for encontrada na pile do slot, assume que é sozinha.
+        """
+        if self.slot is not None and self.slot not in (self.solitaire.stock, self.solitaire.waste):
+            try:
+                idx = self.slot.pile.index(self)
+            except ValueError:
+                idx = 0
+            self.draggable_pile = self.slot.pile[idx:]
+        else:
             self.draggable_pile = [self]
+
 
     def start_drag(self, e: ft.DragStartEvent):
         if self.face_up:
@@ -155,3 +160,21 @@ class Card(ft.GestureDetector):
                 if self.solitaire.check_foundations_rules(self, slot):
                     self.place(slot)
                     return
+                
+    def get_snapshot(self):
+        return {
+            "suite": self.suite,
+            "rank": self.rank,
+            "face_up": self.face_up,
+            "top": self.top,
+            "left": self.left,
+            "slot": self.slot,
+        }
+
+    def restore_snapshot(self, snapshot):
+        self.suite = snapshot["suite"]
+        self.rank = snapshot["rank"]
+        self.face_up = snapshot["face_up"]
+        self.top = snapshot["top"]
+        self.left = snapshot["left"]
+        self.slot = snapshot["slot"]
