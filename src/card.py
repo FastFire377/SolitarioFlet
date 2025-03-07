@@ -30,6 +30,9 @@ class Card(ft.GestureDetector):
             border_radius=ft.border_radius.all(6),
             content=ft.Image(src="/images/card_back.png"),
         )
+        "pokemon_back.jpg"
+        "yugioh_back.jpg"
+        "uno_back.jpg"
         self.draggable_pile = [self]
 
     def turn_face_up(self):

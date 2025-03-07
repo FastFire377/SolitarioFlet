@@ -2,6 +2,7 @@ SOLITAIRE_WIDTH = 1000
 SOLITAIRE_HEIGHT = 500
 CARD_OFFSET = 20
 
+import json
 import random
 import copy 
 
@@ -36,6 +37,11 @@ class Solitaire(ft.Stack):
         self.undo_button = ft.ElevatedButton(text="Desfazer Jogada", on_click=self.undo_move)
         self.controls.append(ft.Container(content=self.undo_button, top=10, right=150))
 
+        self.save_button = ft.ElevatedButton(text="Salvar Jogo", on_click=self.save_game)
+        self.load_button = ft.ElevatedButton(text="Carregar Jogo", on_click=self.load_game)
+        self.controls.append(ft.Container(content=self.save_button, top=50, right=40))
+        self.controls.append(ft.Container(content=self.load_button, top=50, right=160))
+
     def did_mount(self):
         self.create_card_deck()
         self.create_slots()
@@ -64,11 +70,15 @@ class Solitaire(ft.Stack):
             Rank("King", 13),
         ]
 
-        self.cards = []
-
+        # Cria uma lista com todas as 52 cartas
+        self.all_cards = []
         for suite in suites:
             for rank in ranks:
-                self.cards.append(Card(solitaire=self, suite=suite, rank=rank))
+                card = Card(solitaire=self, suite=suite, rank=rank)
+                self.all_cards.append(card)
+        # Para a distribuição, usamos uma cópia dessa lista
+        self.cards = self.all_cards.copy()
+
 
     def create_slots(self):
         self.stock = Slot(solitaire=self, top=0, left=0, border=ft.border.all(1))
@@ -232,6 +242,133 @@ class Solitaire(ft.Stack):
         last_state = self.history[-1]
         self.restore_state(last_state)
 
+    def serialize_state(self):
+        # Serializa o estado de cada carta (posição, face_up, slot, índice) de self.all_cards
+        state = []
+        for card in self.all_cards:
+            # Determina o identificador do slot em que a carta está
+            slot_id = None
+            if card.slot is self.stock:
+                slot_id = "stock"
+            elif card.slot is self.waste:
+                slot_id = "waste"
+            else:
+                for i, foundation in enumerate(self.foundations):
+                    if card.slot is foundation:
+                        slot_id = f"foundation{i}"
+                        break
+                if slot_id is None:
+                    for i, tableau in enumerate(self.tableau):
+                        if card.slot is tableau:
+                            slot_id = f"tableau{i}"
+                            break
+            card_state = {
+                "suite": card.suite.name,
+                "rank": card.rank.name,
+                "face_up": card.face_up,
+                "top": card.top,
+                "left": card.left,
+                "slot": slot_id,
+                "index": card.index
+            }
+            state.append(card_state)
+        return state
+
+
+    def save_game(self, e):
+        # Serializa e salva o estado no client storage
+        state = self.serialize_state()
+        self.page.client_storage.set("solitaire_state", json.dumps(state))
+        self.page.snack_bar = ft.PopupMenuItem(ft.Text("Jogo salvo!"))
+        self.page.snack_bar.open = True
+        self.page.update()
+
+    def load_game(self, e):
+        saved = self.page.client_storage.get("solitaire_state")
+        if not saved:
+            dlg = ft.AlertDialog(title=ft.Text("Nenhum jogo salvo encontrado."))
+            dlg.open = True
+            self.page.dialog = dlg
+            self.page.update()
+            return
+
+        state = json.loads(saved)
+        # print("saved json loaded: ", saved)
+
+        # Limpa as piles dos slots (mantendo os containers)
+        self.stock.pile.clear()
+        self.waste.pile.clear()
+        for slot in self.foundations:
+            slot.pile.clear()
+        for slot in self.tableau:
+            slot.pile.clear()
+
+        # Mapeia os IDs dos slots para os objetos correspondentes
+        slot_map = {"stock": self.stock, "waste": self.waste}
+        for i, foundation in enumerate(self.foundations):
+            slot_map[f"foundation{i}"] = foundation
+        for i, tableau in enumerate(self.tableau):
+            slot_map[f"tableau{i}"] = tableau
+
+        temp_slots = {slot_id: [] for slot_id in slot_map.keys()}
+
+        # Atualiza cada card com os dados salvos (usando self.all_cards, que contém as 52 cartas)
+        for card_state in state:
+            for card in self.all_cards:
+                if card.suite.name == card_state["suite"] and card.rank.name == card_state["rank"]:
+                    card.face_up = card_state["face_up"]
+                    card.left = card_state["left"]
+                    card.index = card_state["index"]
+                    slot_id = card_state["slot"]
+                    if slot_id in slot_map:
+                        card.slot = slot_map[slot_id]
+                        temp_slots[slot_id].append(card)
+                    
+                    if card.face_up:
+                        card.turn_face_up()
+                    else:
+                        card.turn_face_down()
+                    break
+
+        # Para cada slot, ordena as cartas pelo "index" e atualiza a posição
+        for slot_id, cards_list in temp_slots.items():
+            sorted_cards = sorted(cards_list, key=lambda card: card.index)
+            # Se for um slot do tableau, recalcula a posição vertical com base no offset
+            if slot_id.startswith("tableau"):
+                slot_obj = slot_map[slot_id]
+                for i, card in enumerate(sorted_cards):
+                    card.index = i  # Atualiza o índice de forma sequencial
+                    card.top = slot_obj.top + i * CARD_OFFSET
+                    card.left = slot_obj.left
+            else:
+                slot_obj = slot_map[slot_id]
+                for card in sorted_cards:
+                    card.top = slot_obj.top
+                    card.left = slot_obj.left
+            slot_map[slot_id].pile = sorted_cards
+
+        
+        # Construímos uma lista com os cards de cada slot na ordem em que devem aparecer.
+        ordered_cards = []
+        ordered_cards.extend(self.stock.pile)
+        ordered_cards.extend(self.waste.pile)
+        for foundation in self.foundations:
+            ordered_cards.extend(foundation.pile)
+        for tableau in self.tableau:
+            ordered_cards.extend(tableau.pile)
+
+        non_card_controls = [c for c in self.controls if not isinstance(c, Card)]
+        self.controls = non_card_controls + ordered_cards
+        print("nova_lista: ", self.controls)
+        self.update()
+
+        # Mostra mensagem usando AlertDialog
+        dlg = ft.AlertDialog(title=ft.Text("Jogo carregado!"))
+        dlg.open = True
+        self.page.dialog = dlg
+        self.page.update()
+
+
     def clear_game_board(self):
         # Remove todas as cartas da tela
         for card in self.controls: 
@@ -245,7 +382,9 @@ class Solitaire(ft.Stack):
         self.history = []
         self.controls = [
             ft.Container(content=self.restart_button, top=10, right=30),
-            ft.Container(content=self.undo_button, top=10, right=150)
+            ft.Container(content=self.undo_button, top=10, right=150),
+            ft.Container(content=self.save_button, top=50, right=170),
+            ft.Container(content=self.load_button, top=50, right=30)
         ]
         self.create_card_deck()
         self.create_slots()
