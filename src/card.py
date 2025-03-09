@@ -30,9 +30,8 @@ class Card(ft.GestureDetector):
             border_radius=ft.border_radius.all(6),
             content=ft.Image(src="/images/card_back.png"),
         )
-        "pokemon_back.jpg"
-        "yugioh_back.jpg"
-        "uno_back.jpg"
+        
+        
         self.draggable_pile = [self]
 
     def turn_face_up(self):
@@ -42,10 +41,11 @@ class Card(ft.GestureDetector):
         self.solitaire.update()
 
     def turn_face_down(self):
-        """Hides card"""
+        """Hides card and changes card_back"""
         self.face_up = False
-        self.content.content.src = "/images/card_back.png"
+        self.content.content.src = self.solitaire.card_back_image
         self.solitaire.update()
+
 
     def move_on_top(self):
         """Brings draggable card pile to the top of the stack"""
@@ -165,14 +165,14 @@ class Card(ft.GestureDetector):
                     return
                 
     def get_snapshot(self):
-        return {
-            "suite": self.suite,
-            "rank": self.rank,
-            "face_up": self.face_up,
-            "top": self.top,
-            "left": self.left,
-            "slot": self.slot,
-        }
+        return  {
+                "suite": self.suite.name,
+                "rank": self.rank.name,
+                "face_up": self.face_up,
+                "top": self.top,
+                "left": self.left,
+                "index": self.index
+            }
 
     def restore_snapshot(self, snapshot):
         self.suite = snapshot["suite"]

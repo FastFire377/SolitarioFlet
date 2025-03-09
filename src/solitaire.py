@@ -26,21 +26,59 @@ class Rank:
 class Solitaire(ft.Stack):
     def __init__(self):
         super().__init__()
-        self.controls = []
+        
         self.width = SOLITAIRE_WIDTH
         self.height = SOLITAIRE_HEIGHT
-
-        self.restart_button = ft.ElevatedButton(text="Reiniciar Jogo", on_click=self.restart_game)
-        self.controls.append(ft.Container(content=self.restart_button, top=10, right=30))
         
         self.history = []
+        self.restart_button = ft.ElevatedButton(text="Reiniciar Jogo", on_click=self.restart_game)
         self.undo_button = ft.ElevatedButton(text="Desfazer Jogada", on_click=self.undo_move)
-        self.controls.append(ft.Container(content=self.undo_button, top=10, right=150))
-
         self.save_button = ft.ElevatedButton(text="Salvar Jogo", on_click=self.save_game)
         self.load_button = ft.ElevatedButton(text="Carregar Jogo", on_click=self.load_game)
-        self.controls.append(ft.Container(content=self.save_button, top=50, right=40))
-        self.controls.append(ft.Container(content=self.load_button, top=50, right=160))
+        self.back_card_button = ft.PopupMenuButton(
+            items=[
+                ft.PopupMenuItem(text="Padrão", on_click=lambda e: self.set_card_back("card_back.png")),
+                ft.PopupMenuItem(text="Pokemon", on_click=lambda e: self.set_card_back("pokemon_back.jpg")),
+                ft.PopupMenuItem(text="YuGiOh", on_click=lambda e: self.set_card_back("yugioh_back.jpg")),
+                ft.PopupMenuItem(text="Uno", on_click=lambda e: self.set_card_back("uno_back.png")),
+            ]
+        )
+
+        self.controls = self.initiate_controls()
+
+    def initiate_controls(self):
+        self.controls = []
+        controls = []
+        self.history = []
+
+        controls.append(ft.Container(content=self.restart_button, top=10, right=30))
+        controls.append(ft.Container(content=self.undo_button, top=10, right=150))
+        controls.append(ft.Container(content=self.save_button, top=50, right=40))
+        controls.append(ft.Container(content=self.load_button, top=50, right=160))
+        controls.append(ft.Container(content=self.back_card_button, top=90, right=80))
+
+        return controls
+    
+    def set_card_back(self, image_name):
+        self.card_back_image = f"/images/{image_name}"
+        # Atualiza todas as cartas que estão viradas para baixo (usando self.all_cards)
+        for card in self.all_cards:
+            if not card.face_up:
+                card.turn_face_down()
+        self.update()
+        dlg = ft.AlertDialog(
+            title=ft.Text("Traseira alterada!"),
+            content=ft.Text(f"Nova imagem: {image_name}"),
+            actions=[ft.TextButton("OK", on_click=lambda e: self.close_dialog())]
+        )
+        dlg.open = True
+        self.page.dialog = dlg
+        self.update()
+
+
+    def close_dialog(self):
+        self.page.dialog = None
+        self.page.update()
 
     def did_mount(self):
         self.create_card_deck()
@@ -232,6 +270,15 @@ class Solitaire(ft.Stack):
                 card.left = tableau_slot.left
         
         self.update()
+        
+        # Força que todas as cartas na pile do stock fiquem viradas para baixo
+        for card in self.stock.pile:
+            card.face_up = False
+            card.turn_face_down()
+        
+        self.update()
+
+
 
     def undo_move(self, e):
         # Verificar se tem jogadas suficientes para voltar na jogada 
@@ -262,15 +309,8 @@ class Solitaire(ft.Stack):
                         if card.slot is tableau:
                             slot_id = f"tableau{i}"
                             break
-            card_state = {
-                "suite": card.suite.name,
-                "rank": card.rank.name,
-                "face_up": card.face_up,
-                "top": card.top,
-                "left": card.left,
-                "slot": slot_id,
-                "index": card.index
-            }
+            card_state = card.get_snapshot()
+            card_state["slot"] = slot_id
             state.append(card_state)
         return state
 
@@ -359,7 +399,7 @@ class Solitaire(ft.Stack):
 
         non_card_controls = [c for c in self.controls if not isinstance(c, Card)]
         self.controls = non_card_controls + ordered_cards
-        print("nova_lista: ", self.controls)
+        # print("nova_lista: ", self.controls)
         self.update()
 
         # Mostra mensagem usando AlertDialog
@@ -379,13 +419,7 @@ class Solitaire(ft.Stack):
 
     def restart_game(self, e):
         self.clear_game_board()
-        self.history = []
-        self.controls = [
-            ft.Container(content=self.restart_button, top=10, right=30),
-            ft.Container(content=self.undo_button, top=10, right=150),
-            ft.Container(content=self.save_button, top=50, right=170),
-            ft.Container(content=self.load_button, top=50, right=30)
-        ]
+        self.controls = self.initiate_controls()
         self.create_card_deck()
         self.create_slots()
         self.deal_cards()
