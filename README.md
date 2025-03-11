@@ -1,14 +1,14 @@
 # Solitário Flet
 
-Este projeto é uma implementação do clássico jogo de Paciência (Solitário) utilizando a biblioteca [Flet](https://flet.dev) para Python. O jogo permite que o usuário interaja com as cartas por meio de arrastar e soltar, execute jogadas automáticas (como mover cartas para as fundações com duplo clique), desfaça jogadas, e até salve/carregue o estado do jogo. Além disso, é possível personalizar a imagem da traseira das cartas. Muitas destas funcionalidades foram desenvolvidas com apoio de um tutorial oficial do Flet para implementar o jogo base.
+Este projeto é uma implementação do clássico jogo Solitário utilizando a biblioteca [Flet](https://flet.dev) para Python. O jogo permite que o usuário interaja com as cartas por meio de arrastar e soltar, execute jogadas automáticas (como mover cartas para as fundações com duplo clique), desfaça jogadas, e até salve/carregue o estado do jogo. Além disso, é possível personalizar a imagem da traseira das cartas. Muitas destas funcionalidades foram desenvolvidas com apoio de um tutorial oficial do Flet para implementar o jogo base.
 
 
 ## Funcionalidades
 
 - **Distribuição de Cartas:**
-  - Embaralhamento e distribuição das 52 cartas entre o tableau (pilhas de jogo) e o estoque.
+  - Embaralhamento e distribuição das 52 cartas entre o tableau (pilhas de jogo) e o stock.
 - **Interação com Cartas:**
-  - Arrastar e soltar cartas entre os slots (estoque, descarte, fundações e tableau).
+  - Arrastar e soltar cartas entre os slots (stock, descarte, fundações e tableau).
   - Clique e duplo clique para virar cartas e mover automaticamente para as fundações, quando aplicável.
 - **Desfazer Jogada:**
   - Permite reverter a última ação realizada.
@@ -35,7 +35,7 @@ pip install flet
   Define a classe `Card`, que representa uma carta do baralho, com métodos para virar, arrastar, soltar e interagir com o usuário.
 
 - **slot.py:**  
-  Define a classe `Slot`, que representa os locais (estoque, descarte, fundações e tableau) onde as cartas são organizadas.
+  Define a classe `Slot`, que representa os locais (stock, descarte, fundações e tableau) onde as cartas são organizadas.
 
 - **/images:**  
   Pasta contendo as imagens utilizadas no jogo: imagens das faces das cartas e as imagens para as traseiras (ex.: `card_back.png`, `pokemon_back.jpg`, `yugioh_back.jpg`, `uno_back.jpg`).
