@@ -1,10 +1,12 @@
+import self
+
 SOLITAIRE_WIDTH = 1000
 SOLITAIRE_HEIGHT = 500
 CARD_OFFSET = 20
 
 import json
 import random
-import copy 
+import copy
 
 import flet as ft
 from card import Card
@@ -26,11 +28,14 @@ class Rank:
 class Solitaire(ft.Stack):
     def __init__(self):
         super().__init__()
-        
+        self.score = 0
+
         self.width = SOLITAIRE_WIDTH
         self.height = SOLITAIRE_HEIGHT
-        
+
         self.history = []
+        self.foundations = []
+
         self.restart_button = ft.ElevatedButton(text="Reiniciar Jogo", on_click=self.restart_game)
         self.undo_button = ft.ElevatedButton(text="Desfazer Jogada", on_click=self.undo_move)
         self.save_button = ft.ElevatedButton(text="Salvar Jogo", on_click=self.save_game)
@@ -43,6 +48,8 @@ class Solitaire(ft.Stack):
                 ft.PopupMenuItem(text="Uno", on_click=lambda e: self.set_card_back("uno_back.png")),
             ]
         )
+
+        self.score_text = ft.Text(f"Score: {self.score}", size=20)
 
         self.controls = self.initiate_controls()
 
@@ -57,11 +64,60 @@ class Solitaire(ft.Stack):
         controls.append(ft.Container(content=self.load_button, top=50, right=160))
         controls.append(ft.Container(content=self.back_card_button, top=90, right=80))
 
+        controls.append(ft.Container(content=self.score_text, top=130, right=80))
+
         return controls
+
+    def update_score(self):
+        self.score += 1
+        self.score_text.value = f"Score: {self.score}"
+        self.update()
+
+    def check_foundations_rules(self, card, slot):
+        top_card = slot.get_top_card()
+        if top_card is not None:
+            if card.suite.name == top_card.suite.name and card.rank.value - top_card.rank.value == 1:
+                self.update_score()
+                return True
+        else:
+            if card.rank.name == "Ace":
+                self.update_score()
+                return True
+        return False
+
+    def check_tableau_rules(self, card, slot):
+        top_card = slot.get_top_card()
+        if top_card is not None:
+            if card.suite.color != top_card.suite.color and top_card.rank.value - card.rank.value == 1 and top_card.face_up:
+                self.update_score()
+                return True
+        else:
+            if card.rank.name == "King":
+                self.update_score()
+                return True
+        return False
+
+    def update_foundations_with_score(self, state):
+        for i, foundation in enumerate(self.foundations):
+            for card in state["foundations"][i]:
+                foundation.pile.append(card)
+                card.slot = foundation
+                card.top = foundation.top
+                card.left = foundation.left
+                self.update_score()
+
+    def restart_game(self, e):
+        self.clear_game_board()
+        self.controls = self.initiate_controls()
+        self.create_card_deck()
+        self.create_slots()
+        self.deal_cards()
+        self.score = 0
+        self.update_score()
+        self.update()
     
     def set_card_back(self, image_name):
         self.card_back_image = f"/images/{image_name}"
-        # Atualiza todas as cartas que estão viradas para baixo (usando self.all_cards)
         for card in self.all_cards:
             if not card.face_up:
                 card.turn_face_down()
@@ -74,7 +130,6 @@ class Solitaire(ft.Stack):
         dlg.open = True
         self.page.dialog = dlg
         self.update()
-
 
     def close_dialog(self):
         self.page.dialog = None
@@ -114,7 +169,6 @@ class Solitaire(ft.Stack):
             for rank in ranks:
                 card = Card(solitaire=self, suite=suite, rank=rank)
                 self.all_cards.append(card)
-        # Para a distribuição, usamos uma cópia dessa lista
         self.cards = self.all_cards.copy()
 
 
@@ -158,7 +212,6 @@ class Solitaire(ft.Stack):
                 remaining_cards.remove(top_card)
             first_slot += 1
 
-        # place remaining cards to stock pile
         for card in remaining_cards:
             card.place(self.stock)
             print(f"Card in stock: {card.rank.name} {card.suite.name}")
@@ -171,28 +224,6 @@ class Solitaire(ft.Stack):
         self.update()
 
         self.save_state()
-
-
-    def check_foundations_rules(self, card, slot):
-        top_card = slot.get_top_card()
-        if top_card is not None:
-            return (
-                card.suite.name == top_card.suite.name
-                and card.rank.value - top_card.rank.value == 1
-            )
-        else:
-            return card.rank.name == "Ace"
-
-    def check_tableau_rules(self, card, slot):
-        top_card = slot.get_top_card()
-        if top_card is not None:
-            return (
-                card.suite.color != top_card.suite.color
-                and top_card.rank.value - card.rank.value == 1
-                and top_card.face_up
-            )
-        else:
-            return card.rank.name == "King"
 
     def restart_stock(self):
         while len(self.waste.pile) > 0:
@@ -231,57 +262,52 @@ class Solitaire(ft.Stack):
         self.history.append(state)
 
     def restore_state(self, state):
-        # Limpa as pilhas atuais
         self.stock.pile.clear()
         self.waste.pile.clear()
         for slot in self.foundations:
             slot.pile.clear()
         for slot in self.tableau:
             slot.pile.clear()
-        
-        # Adiciona cartas ao stock
+
         for card in state["stock"]:
             self.stock.pile.append(card)
             card.slot = self.stock
             card.top = self.stock.top
             card.left = self.stock.left
-        
-        # Adiciona cartas ao waste
+
         for card in state["waste"]:
             self.waste.pile.append(card)
             card.slot = self.waste
             card.top = self.waste.top
             card.left = self.waste.left
-        
-        # Adiciona cartas às foundations
+
         for i, foundation in enumerate(self.foundations):
             for card in state["foundations"][i]:
                 foundation.pile.append(card)
                 card.slot = foundation
                 card.top = foundation.top
                 card.left = foundation.left
-        
-        # Adiciona cartas ao tableau
+
         for i, tableau_slot in enumerate(self.tableau):
             for j, card in enumerate(state["tableau"][i]):
                 tableau_slot.pile.append(card)
                 card.slot = tableau_slot
                 card.top = tableau_slot.top + j * CARD_OFFSET
                 card.left = tableau_slot.left
-        
+
+            if tableau_slot.pile and not tableau_slot.pile[-1].face_up:
+                tableau_slot.pile[-1].turn_face_up()
+
         self.update()
-        
-        # Força que todas as cartas na pile do stock fiquem viradas para baixo
+
         for card in self.stock.pile:
             card.face_up = False
             card.turn_face_down()
-        
+
         self.update()
-
-
+        self.update_foundations_with_score(state)
 
     def undo_move(self, e):
-        # Verificar se tem jogadas suficientes para voltar na jogada 
         if len(self.history) < 2:
             return
         
@@ -290,10 +316,8 @@ class Solitaire(ft.Stack):
         self.restore_state(last_state)
 
     def serialize_state(self):
-        # Serializa o estado de cada carta (posição, face_up, slot, índice) de self.all_cards
         state = []
         for card in self.all_cards:
-            # Determina o identificador do slot em que a carta está
             slot_id = None
             if card.slot is self.stock:
                 slot_id = "stock"
@@ -316,7 +340,6 @@ class Solitaire(ft.Stack):
 
 
     def save_game(self, e):
-        # Serializa e salva o estado no client storage
         state = self.serialize_state()
         self.page.client_storage.set("solitaire_state", json.dumps(state))
         self.page.snack_bar = ft.PopupMenuItem(ft.Text("Jogo salvo!"))
@@ -333,9 +356,7 @@ class Solitaire(ft.Stack):
             return
 
         state = json.loads(saved)
-        # print("saved json loaded: ", saved)
 
-        # Limpa as piles dos slots (mantendo os containers)
         self.stock.pile.clear()
         self.waste.pile.clear()
         for slot in self.foundations:
@@ -343,7 +364,6 @@ class Solitaire(ft.Stack):
         for slot in self.tableau:
             slot.pile.clear()
 
-        # Mapeia os IDs dos slots para os objetos correspondentes
         slot_map = {"stock": self.stock, "waste": self.waste}
         for i, foundation in enumerate(self.foundations):
             slot_map[f"foundation{i}"] = foundation
@@ -352,7 +372,6 @@ class Solitaire(ft.Stack):
 
         temp_slots = {slot_id: [] for slot_id in slot_map.keys()}
 
-        # Atualiza cada card com os dados salvos (usando self.all_cards, que contém as 52 cartas)
         for card_state in state:
             for card in self.all_cards:
                 if card.suite.name == card_state["suite"] and card.rank.name == card_state["rank"]:
@@ -370,14 +389,12 @@ class Solitaire(ft.Stack):
                         card.turn_face_down()
                     break
 
-        # Para cada slot, ordena as cartas pelo "index" e atualiza a posição
         for slot_id, cards_list in temp_slots.items():
             sorted_cards = sorted(cards_list, key=lambda card: card.index)
-            # Se for um slot do tableau, recalcula a posição vertical com base no offset
             if slot_id.startswith("tableau"):
                 slot_obj = slot_map[slot_id]
                 for i, card in enumerate(sorted_cards):
-                    card.index = i  # Atualiza o índice de forma sequencial
+                    card.index = i
                     card.top = slot_obj.top + i * CARD_OFFSET
                     card.left = slot_obj.left
             else:
@@ -387,8 +404,7 @@ class Solitaire(ft.Stack):
                     card.left = slot_obj.left
             slot_map[slot_id].pile = sorted_cards
 
-        
-        # Construímos uma lista com os cards de cada slot na ordem em que devem aparecer.
+
         ordered_cards = []
         ordered_cards.extend(self.stock.pile)
         ordered_cards.extend(self.waste.pile)
@@ -399,10 +415,8 @@ class Solitaire(ft.Stack):
 
         non_card_controls = [c for c in self.controls if not isinstance(c, Card)]
         self.controls = non_card_controls + ordered_cards
-        # print("nova_lista: ", self.controls)
         self.update()
 
-        # Mostra mensagem usando AlertDialog
         dlg = ft.AlertDialog(title=ft.Text("Jogo carregado!"))
         dlg.open = True
         self.page.dialog = dlg

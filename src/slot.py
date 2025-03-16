@@ -1,3 +1,5 @@
+from src.solitaire import Solitaire
+
 SLOT_WIDTH = 70
 SLOT_HEIGHT = 100
 
@@ -23,3 +25,12 @@ class Slot(ft.Container):
     def click(self, e):
         if self == self.solitaire.stock:
             self.solitaire.restart_stock()
+        else:
+            # Aqui você pode adicionar a lógica de movimentação de cartas para o slot.
+            top_card = self.get_top_card()
+            if top_card:
+                # Verifica se a carta foi colocada corretamente e, se sim, aumenta o score
+                if isinstance(self.solitaire, Solitaire):
+                    if self.solitaire.check_tableau_rules(top_card, self) or self.solitaire.check_foundations_rules(
+                            top_card, self):
+                        self.solitaire.update_score()  # Atualiza o score
