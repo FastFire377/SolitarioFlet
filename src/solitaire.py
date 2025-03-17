@@ -1,4 +1,5 @@
 import self
+import time
 
 SOLITAIRE_WIDTH = 1000
 SOLITAIRE_HEIGHT = 500
@@ -24,29 +25,30 @@ class Rank:
         self.name = card_name
         self.value = card_value
 
-
 class Solitaire(ft.Stack):
     def __init__(self):
         super().__init__()
         self.score = 0
-
         self.width = SOLITAIRE_WIDTH
         self.height = SOLITAIRE_HEIGHT
-
         self.history = []
         self.foundations = []
+        self.is_dark_mode = False
 
-        self.restart_button = ft.ElevatedButton(text="Reiniciar Jogo", on_click=self.restart_game)
-        self.undo_button = ft.ElevatedButton(text="Desfazer Jogada", on_click=self.undo_move)
-        self.save_button = ft.ElevatedButton(text="Salvar Jogo", on_click=self.save_game)
-        self.load_button = ft.ElevatedButton(text="Carregar Jogo", on_click=self.load_game)
+        self.restart_button = ft.ElevatedButton(text="Reiniciar Jogo", on_click=self.restart_game, color="white")
+        self.undo_button = ft.ElevatedButton(text="Desfazer Jogada", on_click=self.undo_move, color="white")
+        self.save_button = ft.ElevatedButton(text="Salvar Jogo", on_click=self.save_game, color="white")
+        self.load_button = ft.ElevatedButton(text="Carregar Jogo", on_click=self.load_game, color="white")
+        self.mode_button = ft.ElevatedButton(text="Modo Claro", on_click=self.toggle_mode, color="white")
+
         self.back_card_button = ft.PopupMenuButton(
             items=[
                 ft.PopupMenuItem(text="Padrão", on_click=lambda e: self.set_card_back("card_back.png")),
                 ft.PopupMenuItem(text="Pokemon", on_click=lambda e: self.set_card_back("pokemon_back.jpg")),
                 ft.PopupMenuItem(text="YuGiOh", on_click=lambda e: self.set_card_back("yugioh_back.jpg")),
                 ft.PopupMenuItem(text="Uno", on_click=lambda e: self.set_card_back("uno_back.png")),
-            ]
+            ],
+            icon_color="black" if not self.is_dark_mode else "white"
         )
 
         self.score_text = ft.Text(f"Score: {self.score}", size=20)
@@ -54,19 +56,128 @@ class Solitaire(ft.Stack):
         self.controls = self.initiate_controls()
 
     def initiate_controls(self):
-        self.controls = []
-        controls = []
-        self.history = []
+        button_width = 140  # Largura fixa para todos os botões
+        button_height = 30  # Altura fixa para todos os botões (opcional)
 
-        controls.append(ft.Container(content=self.restart_button, top=10, right=30))
-        controls.append(ft.Container(content=self.undo_button, top=10, right=150))
-        controls.append(ft.Container(content=self.save_button, top=50, right=40))
-        controls.append(ft.Container(content=self.load_button, top=50, right=160))
-        controls.append(ft.Container(content=self.back_card_button, top=90, right=80))
+        # Criando um espaçamento vertical
+        spacing = 10  # Espaçamento entre os botões
 
-        controls.append(ft.Container(content=self.score_text, top=130, right=80))
+        controls = [
+            # Contêiner para o botão de reiniciar o jogo
+            ft.Container(
+                content=self.restart_button,
+                top=10,  # Posição vertical do primeiro botão
+                right=30,
+                width=button_width,
+                height=button_height
+            ),
+
+            # Contêiner para o botão de desfazer jogada
+            ft.Container(
+                content=self.undo_button,
+                top=10 + button_height + spacing,  # Calculando a posição vertical do próximo botão
+                right=30,
+                width=button_width,
+                height=button_height
+            ),
+
+            # Contêiner para o botão de salvar jogo
+            ft.Container(
+                content=self.save_button,
+                top=10 + 2 * (button_height + spacing),  # Continuando o espaçamento
+                right=30,
+                width=button_width,
+                height=button_height
+            ),
+
+            # Contêiner para o botão de carregar jogo
+            ft.Container(
+                content=self.load_button,
+                top=10 + 3 * (button_height + spacing),
+                right=30,
+                width=button_width,
+                height=button_height
+            ),
+
+            # Contêiner para o botão de alternar modo claro/escuro
+            ft.Container(
+                content=self.mode_button,
+                top=10 + 4 * (button_height + spacing),
+                right=30,
+                width=button_width,
+                height=button_height
+            ),
+
+            # Contêiner para o botão de fundo da carta
+            ft.Container(
+                content=self.back_card_button,
+                top=10 + 5 * (button_height + spacing),
+                right=30,
+                width=button_width,
+                height=button_height
+            ),
+
+            # Contêiner para o texto do score
+            ft.Container(
+                content=self.score_text,
+                top=10 + 6 * (button_height + spacing),  # Posicionando abaixo dos botões
+                right=40
+            ),
+        ]
 
         return controls
+
+    def toggle_mode(self, e):
+        self.is_dark_mode = not self.is_dark_mode
+        background_color = "black" if self.is_dark_mode else "white"
+        button_color = "#333333" if self.is_dark_mode else "#d3d3d3"
+        text_color = "white" if self.is_dark_mode else "black"
+        mode_text = "Modo Escuro" if self.is_dark_mode else "Modo Claro"
+
+        # Alterar o fundo da página
+        self.page.bgcolor = background_color
+
+        # Alterar a cor dos botões e do texto
+        for control in self.controls:
+            if isinstance(control.content, ft.ElevatedButton):
+                control.content.bgcolor = button_color
+                control.content.color = text_color
+
+        # Atualizar a cor do botão de modo
+        self.mode_button.text = mode_text
+        self.mode_button.color = text_color
+        self.mode_button.bgcolor = button_color
+        self.mode_button.update()
+
+        # Atualizar a cor do texto do score
+        self.score_text.color = text_color
+        self.score_text.update()
+
+        # Atualizar a cor dos três pontos
+        self.back_card_button.icon_color = text_color
+        self.back_card_button.update()
+
+        self.update()
+        self.page.update()
+
+    def did_mount(self):
+        # Não inicializa o temporizador aqui, para que ele só comece quando o jogo for iniciado
+        self.create_card_deck()
+        self.create_slots()
+        self.deal_cards()
+
+    def update(self):
+        super().update()  # Chama a função `update` da classe pai
+
+    def restart_game(self, e):
+        self.clear_game_board()
+        self.controls = self.initiate_controls()
+        self.create_card_deck()
+        self.create_slots()
+        self.deal_cards()
+        self.score = 0
+        self.update_score()
+        self.update()
 
     def update_score(self):
         self.score += 1
@@ -106,16 +217,6 @@ class Solitaire(ft.Stack):
                 card.left = foundation.left
                 self.update_score()
 
-    def restart_game(self, e):
-        self.clear_game_board()
-        self.controls = self.initiate_controls()
-        self.create_card_deck()
-        self.create_slots()
-        self.deal_cards()
-        self.score = 0
-        self.update_score()
-        self.update()
-    
     def set_card_back(self, image_name):
         self.card_back_image = f"/images/{image_name}"
         for card in self.all_cards:
@@ -134,11 +235,6 @@ class Solitaire(ft.Stack):
     def close_dialog(self):
         self.page.dialog = None
         self.page.update()
-
-    def did_mount(self):
-        self.create_card_deck()
-        self.create_slots()
-        self.deal_cards()
 
     def create_card_deck(self):
         suites = [
@@ -170,7 +266,6 @@ class Solitaire(ft.Stack):
                 card = Card(solitaire=self, suite=suite, rank=rank)
                 self.all_cards.append(card)
         self.cards = self.all_cards.copy()
-
 
     def create_slots(self):
         self.stock = Slot(solitaire=self, top=0, left=0, border=ft.border.all(1))
@@ -310,7 +405,7 @@ class Solitaire(ft.Stack):
     def undo_move(self, e):
         if len(self.history) < 2:
             return
-        
+
         self.history.pop()
         last_state = self.history[-1]
         self.restore_state(last_state)
@@ -337,7 +432,6 @@ class Solitaire(ft.Stack):
             card_state["slot"] = slot_id
             state.append(card_state)
         return state
-
 
     def save_game(self, e):
         state = self.serialize_state()
@@ -382,7 +476,7 @@ class Solitaire(ft.Stack):
                     if slot_id in slot_map:
                         card.slot = slot_map[slot_id]
                         temp_slots[slot_id].append(card)
-                    
+
                     if card.face_up:
                         card.turn_face_up()
                     else:
@@ -404,7 +498,6 @@ class Solitaire(ft.Stack):
                     card.left = slot_obj.left
             slot_map[slot_id].pile = sorted_cards
 
-
         ordered_cards = []
         ordered_cards.extend(self.stock.pile)
         ordered_cards.extend(self.waste.pile)
@@ -422,20 +515,10 @@ class Solitaire(ft.Stack):
         self.page.dialog = dlg
         self.page.update()
 
-
     def clear_game_board(self):
         # Remove todas as cartas da tela
-        for card in self.controls: 
+        for card in self.controls:
             if isinstance(card, Card):
                 self.controls.remove(card)
 
         self.update()
-
-    def restart_game(self, e):
-        self.clear_game_board()
-        self.controls = self.initiate_controls()
-        self.create_card_deck()
-        self.create_slots()
-        self.deal_cards()
-        self.update()
-
