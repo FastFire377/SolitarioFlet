@@ -34,6 +34,8 @@ class Solitaire(ft.Stack):
         self.history = []
         self.foundations = []
         self.is_dark_mode = False
+        self.card_back_image = "/images/card_back.png"
+        self.stock_cards = []
 
         self.restart_button = ft.ElevatedButton(text="Reiniciar Jogo", on_click=self.restart_game, color="white")
         self.undo_button = ft.ElevatedButton(text="Desfazer Jogada", on_click=self.undo_move, color="white")
@@ -55,42 +57,41 @@ class Solitaire(ft.Stack):
 
         self.controls = self.initiate_controls()
 
-    def initiate_controls(self):
-        button_width = 140  # Largura fixa para todos os botões
-        button_height = 30  # Altura fixa para todos os botões (opcional)
+    def click(self, e):
+        if self == self.stock:
+            self.restart_stock()
 
-        # Criando um espaçamento vertical
-        spacing = 10  # Espaçamento entre os botões
+
+    def initiate_controls(self):
+        button_width = 140
+        button_height = 30
+        spacing = 10
 
         controls = [
-            # Contêiner para o botão de reiniciar o jogo
             ft.Container(
                 content=self.restart_button,
-                top=10,  # Posição vertical do primeiro botão
+                top=10,
                 right=30,
                 width=button_width,
                 height=button_height
             ),
 
-            # Contêiner para o botão de desfazer jogada
             ft.Container(
                 content=self.undo_button,
-                top=10 + button_height + spacing,  # Calculando a posição vertical do próximo botão
+                top=10 + button_height + spacing,
                 right=30,
                 width=button_width,
                 height=button_height
             ),
 
-            # Contêiner para o botão de salvar jogo
             ft.Container(
                 content=self.save_button,
-                top=10 + 2 * (button_height + spacing),  # Continuando o espaçamento
+                top=10 + 2 * (button_height + spacing),
                 right=30,
                 width=button_width,
                 height=button_height
             ),
 
-            # Contêiner para o botão de carregar jogo
             ft.Container(
                 content=self.load_button,
                 top=10 + 3 * (button_height + spacing),
@@ -99,7 +100,6 @@ class Solitaire(ft.Stack):
                 height=button_height
             ),
 
-            # Contêiner para o botão de alternar modo claro/escuro
             ft.Container(
                 content=self.mode_button,
                 top=10 + 4 * (button_height + spacing),
@@ -108,7 +108,6 @@ class Solitaire(ft.Stack):
                 height=button_height
             ),
 
-            # Contêiner para o botão de fundo da carta
             ft.Container(
                 content=self.back_card_button,
                 top=10 + 5 * (button_height + spacing),
@@ -117,10 +116,9 @@ class Solitaire(ft.Stack):
                 height=button_height
             ),
 
-            # Contêiner para o texto do score
             ft.Container(
                 content=self.score_text,
-                top=10 + 6 * (button_height + spacing),  # Posicionando abaixo dos botões
+                top=10 + 6 * (button_height + spacing),
                 right=40
             ),
         ]
@@ -134,26 +132,21 @@ class Solitaire(ft.Stack):
         text_color = "white" if self.is_dark_mode else "black"
         mode_text = "Modo Escuro" if self.is_dark_mode else "Modo Claro"
 
-        # Alterar o fundo da página
         self.page.bgcolor = background_color
 
-        # Alterar a cor dos botões e do texto
         for control in self.controls:
             if isinstance(control.content, ft.ElevatedButton):
                 control.content.bgcolor = button_color
                 control.content.color = text_color
 
-        # Atualizar a cor do botão de modo
         self.mode_button.text = mode_text
         self.mode_button.color = text_color
         self.mode_button.bgcolor = button_color
         self.mode_button.update()
 
-        # Atualizar a cor do texto do score
         self.score_text.color = text_color
         self.score_text.update()
 
-        # Atualizar a cor dos três pontos
         self.back_card_button.icon_color = text_color
         self.back_card_button.update()
 
@@ -161,13 +154,12 @@ class Solitaire(ft.Stack):
         self.page.update()
 
     def did_mount(self):
-        # Não inicializa o temporizador aqui, para que ele só comece quando o jogo for iniciado
         self.create_card_deck()
         self.create_slots()
         self.deal_cards()
 
     def update(self):
-        super().update()  # Chama a função `update` da classe pai
+        super().update()
 
     def restart_game(self, e):
         self.clear_game_board()
@@ -175,9 +167,10 @@ class Solitaire(ft.Stack):
         self.create_card_deck()
         self.create_slots()
         self.deal_cards()
-        self.score = 0
-        self.update_score()
-        self.update()
+
+        self.score = 0  # Reinicia corretamente o score
+        self.score_text.value = f"Score: {self.score}"  # Atualiza o texto diretamente
+        self.update()  # Atualiza a interface
 
     def update_score(self):
         self.score += 1
@@ -186,6 +179,10 @@ class Solitaire(ft.Stack):
 
     def check_foundations_rules(self, card, slot):
         top_card = slot.get_top_card()
+        if card.slot in self.foundations:
+            # A carta já estava em uma fundação, então não adicionamos ponto
+            return False
+
         if top_card is not None:
             if card.suite.name == top_card.suite.name and card.rank.value - top_card.rank.value == 1:
                 self.update_score()
@@ -219,18 +216,21 @@ class Solitaire(ft.Stack):
 
     def set_card_back(self, image_name):
         self.card_back_image = f"/images/{image_name}"
+
+        # Atualiza todas as cartas viradas para baixo
         for card in self.all_cards:
             if not card.face_up:
-                card.turn_face_down()
-        self.update()
+                card.turn_face_down()  # Remova o argumento se a função não precisar dele
+
         dlg = ft.AlertDialog(
             title=ft.Text("Traseira alterada!"),
             content=ft.Text(f"Nova imagem: {image_name}"),
             actions=[ft.TextButton("OK", on_click=lambda e: self.close_dialog())]
         )
+
         dlg.open = True
         self.page.dialog = dlg
-        self.update()
+        self.page.update()  # Atualiza a página inteira para garantir que o diálogo apareça
 
     def close_dialog(self):
         self.page.dialog = None
@@ -307,8 +307,12 @@ class Solitaire(ft.Stack):
                 remaining_cards.remove(top_card)
             first_slot += 1
 
+        # Limpa o estoque antes de adicionar as cartas restantes
+        self.stock.pile.clear()
+
         for card in remaining_cards:
             card.place(self.stock)
+            card.turn_face_down() # garante que as cartas estejam viradas para baixo.
             print(f"Card in stock: {card.rank.name} {card.suite.name}")
 
         self.update()
@@ -321,21 +325,46 @@ class Solitaire(ft.Stack):
         self.save_state()
 
     def restart_stock(self):
-        while len(self.waste.pile) > 0:
-            card = self.waste.get_top_card()
-            card.turn_face_down()
-            card.move_on_top()
-            card.place(self.stock)
+        """Reinicia as cartas do estoque"""
+        if not self.stock.pile:  # Verifica se o estoque está vazio
+            cards_to_move = self.waste.pile.copy() # Make a copy to prevent modification during iteration
+            for card in cards_to_move:
+                if card in self.waste.pile: #Verify if the card is still inside the waste pile.
+                    self.waste.pile.remove(card)
+                    card.place(self.stock)
+                    card.turn_face_down()  # Vira a carta para baixo
+                    print(f"Card moved from waste to stock: {card.rank.name} {card.suite.name}")
+                else:
+                    print(f"Card {card.rank.name} {card.suite.name} not found in waste pile, skipping.")
+
+        else:
+            for card in self.stock.pile:
+                card.turn_face_down()
+
+        self.update()  # Atualiza a página apenas uma vez
 
     def check_win(self):
-        cards_num = 0
-        for slot in self.foundations:
-            cards_num += len(slot.pile)
-        if cards_num == 52:
+        # Verifica se os quatro Ases estão nas fundações
+        aces_in_foundations = 0
+        for foundation in self.foundations:
+            for card in foundation.pile:
+                if card.rank.name == "Ace":
+                    aces_in_foundations += 1
+
+        if aces_in_foundations == 4:  # Se todos os 4 Ases estiverem nas fundações
+            self.play_win_sound()
             return True
         return False
 
+    def play_win_sound(self):
+        self.win_audio = ft.Audio(src="/assets/audio/win_sound.mp3", autoplay=True)
+        self.page.overlay.append(self.win_audio)
+        self.page.update()
+
     def winning_sequence(self):
+        print("Função winning_sequence() chamada!")
+        self.play_win_sound()  # Reproduz som de vitória
+
         for slot in self.foundations:
             for card in slot.pile:
                 card.animate_position = 2000
@@ -343,9 +372,18 @@ class Solitaire(ft.Stack):
                 card.top = random.randint(0, SOLITAIRE_HEIGHT)
                 card.left = random.randint(0, SOLITAIRE_WIDTH)
                 self.update()
-        self.controls.append(
-            ft.AlertDialog(title=ft.Text("Congratulations! You won!"), open=True)
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Yupi! Ganhou o jogo!"),
+            actions=[
+                ft.TextButton("OK", on_click=self.close_dialog),
+                ft.TextButton("Recomeçar", on_click=self.restart_game),
+            ],
+            open=True
         )
+
+        self.page.dialog = dlg
+        self.update()
 
     def save_state(self):
         state = {

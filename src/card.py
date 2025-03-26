@@ -31,7 +31,6 @@ class Card(ft.GestureDetector):
             content=ft.Image(src="/images/card_back.png"),
         )
         
-        
         self.draggable_pile = [self]
 
     def turn_face_up(self):
@@ -41,11 +40,13 @@ class Card(ft.GestureDetector):
         self.solitaire.update()
 
     def turn_face_down(self):
-        """Hides card and changes card_back"""
+        """Vira a carta para baixo com a imagem de fundo atual"""
         self.face_up = False
-        self.content.content.src = self.solitaire.card_back_image
-        self.solitaire.update()
+        self.content.content.src = self.solitaire.card_back_image  # Usa a imagem salva
 
+        # Verifica se a carta está na interface antes de atualizar
+        if self.page:
+            self.page.update()  # Atualiza a interface toda, evitando erro
 
     def move_on_top(self):
         """Brings draggable card pile to the top of the stack"""
@@ -69,26 +70,34 @@ class Card(ft.GestureDetector):
         """Place draggable pile to the slot"""
 
         for card in self.draggable_pile:
+            # Define a posição vertical da carta
             if slot in self.solitaire.tableau:
+                # Para slots do tableau, empilha as cartas com um offset
                 card.top = slot.top + len(slot.pile) * CARD_OFFSET
             else:
+                # Para outros slots, coloca as cartas na mesma posição vertical
                 card.top = slot.top
             card.left = slot.left
 
-            # remove card from it's original slot, if exists
+            # Remove a carta do slot original, se existir
             if card.slot is not None:
-                card.slot.pile.remove(card)
+                if card in card.slot.pile:  # Verifica se a carta está na pilha do slot anterior
+                    card.slot.pile.remove(card)
+                else:
+                    print(f"Warning: Card {card.rank.name} {card.suite.name} not found in previous slot's pile.")
 
-            # change card's slot to a new slot
+            # Atualiza o slot da carta para o novo slot
             card.slot = slot
 
-            # add card to the new slot's pile
+            # Adiciona a carta à pilha do novo slot
             slot.pile.append(card)
             card.index = len(slot.pile) - 1
 
+        # Verifica se o jogo foi vencido
         if self.solitaire.check_win():
             self.solitaire.winning_sequence()
 
+        # Atualiza a interface e salva o estado do jogo
         self.solitaire.update()
         self.solitaire.save_state()
 
@@ -145,10 +154,8 @@ class Card(ft.GestureDetector):
             self.bounce_back()
 
     def click(self, e):
-
-        self.get_draggable_pile()
         if self.slot in self.solitaire.tableau:
-            if not self.face_up and len(self.draggable_pile) == 1:
+            if not self.face_up and self == self.slot.get_top_card():
                 self.turn_face_up()
         elif self.slot == self.solitaire.stock:
             self.move_on_top()
