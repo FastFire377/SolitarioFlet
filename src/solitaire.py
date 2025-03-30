@@ -1,13 +1,9 @@
-import self
-import time
-
 SOLITAIRE_WIDTH = 1000
 SOLITAIRE_HEIGHT = 500
 CARD_OFFSET = 20
 
 import json
 import random
-import copy
 
 import flet as ft
 from card import Card
@@ -147,8 +143,15 @@ class Solitaire(ft.Stack):
         self.score_text.color = text_color
         self.score_text.update()
 
-        self.back_card_button.icon_color = text_color
-        self.back_card_button.update()
+        self.back_card_button = ft.PopupMenuButton(
+            items=[
+                ft.PopupMenuItem(text="Padrão", on_click=lambda e: self.set_card_back("card_back.png")),
+                ft.PopupMenuItem(text="Pokemon", on_click=lambda e: self.set_card_back("pokemon_back.jpg")),
+                ft.PopupMenuItem(text="YuGiOh", on_click=lambda e: self.set_card_back("yugioh_back.jpg")),
+                ft.PopupMenuItem(text="Uno", on_click=lambda e: self.set_card_back("uno_back.png")),
+            ],
+            icon_color=text_color
+        )
 
         self.update()
         self.page.update()
@@ -356,14 +359,8 @@ class Solitaire(ft.Stack):
             return True
         return False
 
-    def play_win_sound(self):
-        self.win_audio = ft.Audio(src="/assets/audio/win_sound.mp3", autoplay=True)
-        self.page.overlay.append(self.win_audio)
-        self.page.update()
-
     def winning_sequence(self):
         print("Função winning_sequence() chamada!")
-        self.play_win_sound()  # Reproduz som de vitória
 
         for slot in self.foundations:
             for card in slot.pile:
